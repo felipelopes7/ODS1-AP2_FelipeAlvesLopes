@@ -101,47 +101,45 @@ streamlit run app_streamlit.py
 
 *O navegador abrirá automaticamente com a aplicação.*
 
-## Lógica de Recomendação (Como Funciona)
+## Detalhes da Implementação (O Algoritmo)
 
-*A lógica central está no arquivo backend/recommender.py e segue três etapas principais:*
+A lógica de recomendação reside no arquivo backend/recommender.py e foi construída seguindo os princípios de Processamento de Linguagem Natural (NLP) e Álgebra Linear.
 
-### 1. Vetorização dos Itens (TF-IDF)
+### Passo 1: Preparação e Vetorização (TF-IDF)
 
-O sistema cria uma "sopa de metadados" para cada mangá, concatenando as seguintes informações:
+O computador não entende texto nativamente, apenas números. Para resolver isso:
 
-- Categoria (Gênero)
+- Metadata Soup (Sopa de Metadados): Concatenamos todas as colunas textuais relevantes (Categoria + Autor + Ano + Título + Tags + Sinopse) em uma única string gigante para cada mangá.
 
-- Autor
+- TF-IDF (Term Frequency-Inverse Document Frequency): Aplicamos esta técnica para converter a "sopa" em vetores numéricos.
 
-- Ano
+- O TF-IDF dá pouco peso a palavras muito comuns que não ajudam a diferenciar itens (como "o", "a", "história") e dá muito peso a palavras raras e específicas (como "Alquimia", "Shinigami", "Titã").
 
-- Título
+O resultado é a tfidf_matrix, uma matriz onde cada linha representa a "impressão digital" matemática de um mangá.
 
-- Tags (Ex: "Ninja", "Espadas", "Vampiros")
+### Passo 2: Construção do Perfil do Utilizador
 
-- Sinopse
+O sistema precisa traduzir o histórico de notas do usuário em um vetor de preferências:
 
-Em seguida, utiliza o TF-IDF (Term Frequency-Inverse Document Frequency) para converter esse texto em vetores numéricos. Isso permite que o sistema entenda matematicamente a importância de cada palavra (por exemplo, a palavra "Ninja" será muito relevante para diferenciar Naruto de um romance escolar).
+- Identificamos os itens que o usuário avaliou positivamente (Nota >= 3).
 
-### 2. Construção do Perfil do Utilizador
+- Recuperamos os vetores TF-IDF desses itens específicos.
 
-O sistema analisa o histórico de avaliações do utilizador:
+- Calculamos a Média Vetorial desses itens. 
 
-Seleciona todos os mangás que o utilizador avaliou com nota igual ou superior a 3 (considerados como "Gostei").
+O vetor resultante aponta para a "direção média" do gosto do usuário no espaço multidimensional. Por exemplo, se o usuário gosta de "Naruto" e "Bleach", o vetor médio estará posicionado numa região densa de palavras como "Luta", "Poderes" e "Amizade".
 
-Calcula um vetor médio desses mangás. Esse vetor resultante representa o "gosto médio" do utilizador no espaço vetorial.
+### Passo 3: Similaridade de Cosseno
 
-### 3. Geração de Recomendações (Similaridade de Cosseno)
+Para gerar a lista final:
 
-Para recomendar:
+- Utilizamos a Similaridade de Cosseno para medir o ângulo entre o Vetor de Perfil do Usuário e os vetores de todos os outros mangás do catálogo.
 
-O sistema calcula a Similaridade de Cosseno entre o Vetor do Perfil do Utilizador e os vetores de todos os mangás do catálogo.
+- Matematicamente, quanto menor o ângulo entre os vetores, mais similar é o conteúdo.
 
-Os mangás com maior similaridade (ângulos mais próximos) são retornados como recomendação, excluindo aqueles que o utilizador já viu.
+- O sistema ordena os itens pela maior similaridade (score mais próximo de 1.0) e remove aqueles que o usuário já consumiu.
 
 ## Métricas e Avaliação de Acurácia
-
-O sistema possui uma rota dedicada (/avaliar_acuracia) para medir a performance das recomendações.
 
 **Metodologia de Teste:**
 
