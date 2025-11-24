@@ -185,41 +185,62 @@ def display_recommendations():
                     st.error(f"Erro de conexão com o backend: {e}")
 
 def display_accuracy():
-    """Renderiza a página de avaliação de acurácia."""
-    st.header(" Avaliar Acurácia")
+    """Renderiza a página de avaliação de performance (Precision, Recall, F1)."""
+    st.header(" Avaliar Performance")
+    
+    # Verifica se há avaliações
     if ratings_df.empty or ratings_df['user_id'].nunique() < 1:
-        st.info("Adicione mais avaliações para calcular a acurácia.")
+        st.info("Adicione mais avaliações para calcular as métricas.")
     else:
         st.subheader("Avaliação por Usuário")
         user_ids = sorted(ratings_df["user_id"].unique())
         selected_user = st.selectbox("Escolha um usuário", options=user_ids)
-        st.write("**Parâmetros fixos:** Fração de teste = 30%, Top N = 5")
-        if st.button("Calcular Acurácia do Usuário"):
+        st.write("**Parâmetros:** Consideramos 'relevante' notas >= 4.")
+        
+        if st.button("Calcular Métricas do Usuário"):
             with st.spinner("Calculando..."):
                 try:
                     response = requests.get(f"{API_URL}/avaliar_acuracia/{selected_user}")
                     response.raise_for_status()
                     result = response.json()
+                    
                     if "message" in result:
                         st.warning(result["message"])
                     else:
-                        st.metric("Acurácia", f"{result.get('accuracy', 0):.2%}")
+                        # --- MUDANÇA AQUI: Exibe as 3 métricas ---
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Precision", f"{result.get('precision', 0):.2%}", help="Dos recomendados, quantos o usuário curtiu?")
+                        col2.metric("Recall", f"{result.get('recall', 0):.2%}", help="Dos que o usuário curte, quantos encontramos?")
+                        col3.metric("F1-Score", f"{result.get('f1_score', 0):.2%}", help="Média harmônica")
+                        
+                        st.markdown("---")
                         st.write(f"**Itens de teste (gostou):** {result.get('test_liked', [])}")
                         st.write(f"**Itens recomendados:** {result.get('recommended', [])}")
-                        st.write(f"**Acertos:** {result.get('hits', 0)}")
+                        st.write(f"**Acertos (Hits):** {result.get('hits', 0)}")
+                        
                 except requests.RequestException as e:
                     st.error(f"Erro de conexão com o backend: {e}")
 
         st.markdown("---")
         st.subheader("Avaliação Geral do Modelo")
-        if st.button("Calcular Acurácia Geral"):
+        
+        if st.button("Calcular Médias Globais"):
             with st.spinner("Calculando acurácia para todos os usuários..."):
                 try:
                     response = requests.get(f"{API_URL}/avaliar_acuracia_geral")
                     response.raise_for_status()
                     result = response.json()
-                    st.metric("Acurácia Média Global", f"{result.get('overall_accuracy', 0):.2%}")
-                    st.write(f"**Total de usuários avaliados:** {result.get('total_users_evaluated', 0)}")
+                    
+                    if "message" in result:
+                        st.warning(result["message"])
+                    else:
+                        # --- MUDANÇA AQUI: Médias Globais ---
+                        c1, c2, c3 = st.columns(3)
+                        c1.metric("Média Precision", f"{result.get('mean_precision', 0):.2%}")
+                        c2.metric("Média Recall", f"{result.get('mean_recall', 0):.2%}")
+                        c3.metric("Média F1", f"{result.get('mean_f1', 0):.2%}")
+                        
+                        st.write(f"**Total de usuários avaliados:** {result.get('users_evaluated', 0)}")
                 except requests.RequestException as e:
                     st.error(f"Erro de conexão ou endpoint não encontrado: {e}")
 
