@@ -255,48 +255,67 @@ def display_accuracy():
 def display_manga_details(item_id):
     """Renderiza a página de detalhes de um mangá específico."""
     global ratings_df
-    if st.button(" Voltar ao Catálogo", key="back_button"):
+    
+    # Botão de voltar
+    if st.button("⬅️ Voltar ao Catálogo", key="back_button"):
         st.session_state.selected_manga_id = None
         st.rerun()
 
+    # Pega os dados do item selecionado
     selected_item = items_with_avg.loc[items_with_avg["item_id"] == item_id].iloc[0]
+    
     st.header(selected_item["title"])
+    
     col1, col2 = st.columns([1, 2])
+    
     with col1:
         st.image(selected_item['image_url'], use_container_width=True)
+    
     with col2:
-        st.subheader("Detalhes")
-        st.write(f"**Autor:** {selected_item['author']}")
-        st.write(f"**Ano:** {selected_item['year']}")
-        st.write(f"**Categoria:** {selected_item['category']}")
+        st.subheader("Ficha Técnica")
+        st.write(f"**✍️ Autor:** {selected_item['author']}")
+        st.write(f"**📅 Ano:** {selected_item['year']}")
+        st.write(f"**📂 Categoria:** {selected_item['category']}")
         
-        # NOVIDADE: Mostra as tags (essenciais para Content-Based)
-        if 'tags' in selected_item and selected_item['tags']:
-            tags_list = selected_item['tags'].split(',')
-            st.write("**Tags:**")
-            # Exibe tags como pequenas "pílulas" ou texto formatado
-            st.markdown(" ".join([f"`{tag.strip()}`" for tag in tags_list]))
-            
-        st.write(f"**Média:** ⭐ {selected_item['avg_rating']:.2f}" if selected_item['avg_rating'] > 0 else "Sem avaliações")
+        # --- AQUI ESTÁ A MÁGICA DA SINOPSE E TAGS ---
+        # Usamos .get() ou verificamos se a coluna existe para evitar erros
+        if 'tags' in selected_item and pd.notna(selected_item['tags']):
+             st.info(f"**Tags:** {selected_item['tags']}")
+             
+        st.metric("Nota Média", f"⭐ {selected_item['avg_rating']:.2f}")
+
+    # Exibe a Sinopse em um bloco de destaque abaixo das colunas
+    if 'synopsis' in selected_item and pd.notna(selected_item['synopsis']):
+        st.markdown("### 📖 Sinopse")
+        st.write(selected_item['synopsis'])
+    else:
+        st.warning("Sinopse não disponível.")
 
     st.markdown("---")
+    
+    # --- Bloco de Avaliação do Usuário (Mantido igual) ---
     st.subheader("Sua Avaliação")
     current_user_id = st.number_input("Seu ID de usuário", min_value=1, step=1, value=st.session_state.current_user_id, key='user_id_input_detail')
     st.session_state.current_user_id = current_user_id
     
     user_rating_row = ratings_df[(ratings_df["user_id"] == current_user_id) & (ratings_df["item_id"] == item_id)]
     initial_rating = int(user_rating_row["rating"].iloc[0]) if not user_rating_row.empty else 3
-    st.info(f"Sua avaliação atual: **{initial_rating}**." if not user_rating_row.empty else "Você ainda não avaliou este mangá.")
     
-    new_rating = st.slider("Nota", 1, 5, initial_rating)
-    if st.button("Salvar Minha Avaliação"):
+    if not user_rating_row.empty:
+        st.success(f"Você já avaliou com nota: **{initial_rating}**")
+    else:
+        st.info("Você ainda não avaliou este mangá.")
+    
+    new_rating = st.slider("Dê sua nota:", 1, 5, initial_rating)
+    
+    if st.button("💾 Salvar Minha Avaliação"):
         if not user_rating_row.empty:
             ratings_df.loc[user_rating_row.index, "rating"] = new_rating
-            st.session_state.toast_message = {"message": "✅ Avaliação atualizada com sucesso!", "icon": "✅"}
+            st.session_state.toast_message = {"message": "✅ Avaliação atualizada!", "icon": "✅"}
         else:
             new_row = pd.DataFrame([{"user_id": current_user_id, "item_id": item_id, "rating": new_rating}])
             ratings_df = pd.concat([ratings_df, new_row], ignore_index=True)
-            st.session_state.toast_message = {"message": "✅ Avaliação adicionada com sucesso!", "icon": "✅"}
+            st.session_state.toast_message = {"message": "✅ Avaliação salva!", "icon": "✅"}
         
         ratings_df.to_csv(RATINGS_CSV, index=False)
         st.cache_data.clear()
